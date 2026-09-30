@@ -24,19 +24,25 @@
 ## Запуск
 
 ```bash
-corepack enable          # pnpm з packageManager
+nvm use                    # Node 24 з .nvmrc
 pnpm install
-cp .env.example .env     # заповнити DATABASE_URL, DIRECT_URL, AUTH_SECRET
-pnpm db:migrate          # застосувати міграції
-pnpm db:seed             # демо-дані (етап 1)
-pnpm dev                 # http://localhost:3000
+cp .env.example .env       # заповнити рядки Neon та AUTH_SECRET
+pnpm db:migrate            # застосувати міграції
+pnpm db:seed               # демо-дані (етап 1)
+pnpm dev                   # http://localhost:3000
 ```
 
-Змінні середовища:
+### Змінні середовища
 
-- `DATABASE_URL` — pooled-рядок Neon (хост містить `-pooler`), використовується застосунком.
-- `DIRECT_URL` — прямий рядок Neon, використовується Prisma CLI для міграцій.
-- `AUTH_SECRET` — `openssl rand -base64 32`.
+| Змінна             | Призначення                                               |
+| ------------------ | --------------------------------------------------------- |
+| `DATABASE_URL`     | pooled-рядок Neon (хост містить `-pooler`) для застосунку |
+| `DIRECT_URL`       | прямий рядок Neon для Prisma CLI (міграції, seed, studio) |
+| `DATABASE_URL_DEV` | те саме для гілки `dev` Neon — локальна розробка          |
+| `DIRECT_URL_DEV`   | те саме для гілки `dev` Neon — міграції під час розробки  |
+| `AUTH_SECRET`      | `openssl rand -base64 32`                                 |
+
+Локально `DATABASE_URL_DEV` / `DIRECT_URL_DEV` мають пріоритет над основними (див. `src/lib/env.ts` і `prisma.config.ts`), тому розробка не зачіпає демо-дані. На Vercel і в CI змінних `*_DEV` немає — там використовується основна база. Щоб застосувати міграції до основної гілки вручну: `DIRECT_URL=<прямий рядок> pnpm db:deploy`.
 
 `.env` у `.gitignore`, у репозиторії лише `.env.example`.
 

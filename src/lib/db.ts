@@ -1,18 +1,12 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 
+import { getDatabaseUrl } from "@/lib/env";
+
 import { PrismaClient } from "@/generated/prisma/client";
-
-const connectionString = process.env.DATABASE_URL;
-
-if (!connectionString) {
-  throw new Error(
-    "DATABASE_URL is not set. Copy .env.example to .env and fill in the Neon connection strings.",
-  );
-}
 
 function createPrismaClient() {
   // Neon pooler: `sslmode=require` is enough for the pooled endpoint.
-  return new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
+  return new PrismaClient({ adapter: new PrismaPg({ connectionString: getDatabaseUrl() }) });
 }
 
 const globalForPrisma = globalThis as unknown as {
