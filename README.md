@@ -107,11 +107,27 @@ pet-shop-crm/
 | Замовлення: створення, зміна статусу, скасування        | ✅    | ✅      |
 | Керування користувачами                                 | ✅    | ❌      |
 
-Демо-користувачів буде створено в `pnpm db:seed` (етап 1): `admin@petshop.local` та `manager@petshop.local`. Паролі — тільки в README, у проді не використовуються.
+Демо-користувачі створюються в `pnpm db:seed` (етап 1):
+
+| Роль    | Email                   | Пароль        |
+| ------- | ----------------------- | ------------- |
+| Admin   | `admin@petshop.local`   | `Admin123!`   |
+| Manager | `manager@petshop.local` | `Manager123!` |
+
+Паролі призначені лише для локального демо. Seed їх перезаписує при кожному запуску; змінити можна через `SEED_ADMIN_PASSWORD` / `SEED_MANAGER_PASSWORD`.
+
+## Авторизація
+
+- Сесія — JWT (Auth.js Credentials), паролі звіряються через bcryptjs (cost 12) у `src/lib/auth.ts`.
+- `src/proxy.ts` (Next 16 замість middleware) не пропускає анонімних відвідувачів до сторінок і відправляє їх на `/login?callbackUrl=...`; `api` виключено, щоб Route Handlers відповідали JSON-контрактом помилок.
+- Права перевіряються на сервері: `requireRole()` / `requirePermission()` у `src/lib/permissions.ts`. Приховування посилання в навігації — лише зручність.
+- `GET /api/users` повертає `401` без сесії та `403` (`{"error":{"code":"FORBIDDEN",...}}`) для Manager.
 
 ## CI
 
 `.github/workflows/ci.yml`: `pnpm install --frozen-lockfile` → `lint` → `typecheck` → `db:deploy` (Postgres 16 як service container) → `test` → `build`.
+
+`typecheck` спершу виконує `prisma generate`, бо згенерований клієнт не потрапляє в git — свіжий клон і CI проходять перевірку без ручного кроку.
 
 ## Відхилення від специфікації
 
@@ -121,7 +137,8 @@ pet-shop-crm/
 - **pnpm 12**: `onlyBuiltDependencies` замінено на `allowBuilds` у `pnpm-workspace.yaml` (`prisma`, `@prisma/engines`, `esbuild`, `@tailwindcss/oxide`, `sharp`, `unrs-resolver`). Старе поле вже ігнорується з pnpm 11.
 - **Next.js 16 + Tailwind 4**: Turbopack за замовчуванням, shadcn/ui ініціалізовано в новому CLI (`style: radix-nova`).
 - **bcryptjs 3** має власні типи, тому `@types/bcryptjs` не встановлювався.
-- Точки монтування middleware у Next 16 (`src/proxy.ts` замість `src/middleware.ts`) перевіряються на етапі 1.
+- **Next.js 16**: middleware перейменовано на proxy (`src/proxy.ts` з named export `proxy`); Auth.js-проміс обгорнуто функцією, бо Next розпізнає лише статично аналізовні експорти. `next-auth@5.0.0-beta.32` експортує `NextAuth` як default, а JWT-тип не можна розширити через `next-auth/jwt` (тільки re-export з `@auth/core`, недоступного для pnpm) — форма токена описана в `src/lib/auth.config.ts`.
+- **`"use server"`**: файл може експортувати лише async-функції, тому стан логіну не експортується константою.
 
 ## План
 
