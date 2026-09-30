@@ -147,14 +147,14 @@ describe("order creation writes stock movements in the same transaction", () => 
   it("fails with INSUFFICIENT_STOCK and changes nothing", async () => {
     const productId = await createProduct(`TST-ORD-${runId}-C`, 2);
     const before = await movementsOf(productId);
-    const orderCountBefore = await db.order.count();
+    const orderCountBefore = await db.order.count({ where: { customerId } });
 
     const attempt = createOrder({ customerId, items: [{ productId, quantity: 5 }] }, authorId);
 
     await expect(attempt).rejects.toMatchObject({ code: "INSUFFICIENT_STOCK", status: 409 });
     expect(await stockOf(productId)).toBe(2);
     expect(await movementsOf(productId)).toEqual(before);
-    expect(await db.order.count()).toBe(orderCountBefore);
+    expect(await db.order.count({ where: { customerId } })).toBe(orderCountBefore);
   });
 
   it("rejects an unknown customer and an unknown product", async () => {
