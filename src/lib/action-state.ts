@@ -6,6 +6,7 @@ export type ActionState = {
   fieldErrors?: Record<string, string>;
   ok?: boolean;
   createdId?: string;
+  message?: string;
 };
 
 export const initialActionState: ActionState = {};

@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { AppError } from "@/lib/errors";
 import { parseUahToKopecks } from "@/lib/money";
+import { flattenSearchParams } from "@/lib/search-params";
 
 const skuSchema = z
   .string()
@@ -119,13 +120,7 @@ export type ProductListQuery = z.infer<typeof productListQuerySchema>;
 export function parseProductListQuery(
   searchParams: Record<string, string | string[] | undefined>,
 ): ProductListQuery {
-  const flat = Object.fromEntries(
-    Object.entries(searchParams).flatMap(([key, value]) =>
-      value === undefined ? [] : [[key, Array.isArray(value) ? value[0] : value]],
-    ),
-  );
-
-  const parsed = productListQuerySchema.safeParse(flat);
+  const parsed = productListQuerySchema.safeParse(flattenSearchParams(searchParams));
   if (parsed.success) return parsed.data;
 
   const fallback = productListQuerySchema.safeParse({});

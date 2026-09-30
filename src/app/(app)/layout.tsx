@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "Дашборд" },
   { href: "/products", label: "Товари", permission: "CATALOG_VIEW" as const },
   { href: "/categories", label: "Категорії", permission: "CATALOG_VIEW" as const },
+  { href: "/stock", label: "Склад", permission: "STOCK_VIEW" as const },
   { href: "/users", label: "Користувачі", permission: "USER_MANAGE" as const },
 ];
 

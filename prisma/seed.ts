@@ -124,10 +124,11 @@ const SEED_CUSTOMERS = [
 
 async function main() {
   const prisma = createPrismaClient();
+  let adminId = "";
 
   for (const user of SEED_USERS) {
     const passwordHash = await hash(user.password, BCRYPT_COST);
-    await prisma.user.upsert({
+    const saved = await prisma.user.upsert({
       where: { email: user.email },
       update: { name: user.name, role: user.role, passwordHash },
       create: {
@@ -137,6 +138,7 @@ async function main() {
         passwordHash,
       },
     });
+    if (saved.role === "ADMIN") adminId = saved.id;
     console.log(`user: ${user.email} (${user.role})`);
   }
 
@@ -154,26 +156,51 @@ async function main() {
       where: { slug: product.categorySlug },
     });
 
-    await prisma.product.upsert({
+    const saved = await prisma.product.upsert({
       where: { sku: product.sku },
       update: {
         name: product.name,
         description: product.description,
         priceKopecks: product.priceKopecks,
-        stock: product.stock,
         lowStockThreshold: product.lowStockThreshold,
         categoryId: category.id,
       },
+      // New products start empty so that every unit of stock has a movement behind it.
       create: {
         sku: product.sku,
         name: product.name,
         description: product.description,
         priceKopecks: product.priceKopecks,
-        stock: product.stock,
+        stock: 0,
         lowStockThreshold: product.lowStockThreshold,
         categoryId: category.id,
       },
     });
+
+    // `stock` must equal the sum of the journal deltas (spec section 5.2), so the demo
+    // balance is booked as a movement instead of being written directly. Re-running the
+    // seed only corrects a balance that drifted.
+    const aggregate = await prisma.stockMovement.aggregate({
+      where: { productId: saved.id },
+      _sum: { delta: true },
+    });
+    const booked = aggregate._sum.delta ?? 0;
+    const delta = product.stock - booked;
+
+    if (delta !== 0) {
+      await prisma.$transaction([
+        prisma.product.update({ where: { id: saved.id }, data: { stock: product.stock } }),
+        prisma.stockMovement.create({
+          data: {
+            productId: saved.id,
+            delta,
+            reason: "CORRECTION",
+            note: booked === 0 ? "Початковий залишок" : "Коригування seed до демо-залишку",
+            createdById: adminId,
+          },
+        }),
+      ]);
+    }
   }
   console.log(`products: ${SEED_PRODUCTS.length}`);
 
