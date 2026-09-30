@@ -1,0 +1,9 @@
+# pnpm 12: allowBuilds replaces onlyBuiltDependencies/neverBuiltDependencies.
+# Packages not listed here are treated as unreviewed and install fails with ERR_PNPM_IGNORED_BUILDS.
+allowBuilds:
+  "@prisma/engines": true
+  "@tailwindcss/oxide": true
+  esbuild: true
+  prisma: true
+  sharp: true
+  unrs-resolver: true
