@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { href: "/categories", label: "Категорії", permission: "CATALOG_VIEW" as const },
   { href: "/stock", label: "Склад", permission: "STOCK_VIEW" as const },
   { href: "/customers", label: "Клієнти", permission: "CUSTOMER_VIEW" as const },
+  { href: "/orders", label: "Замовлення", permission: "ORDER_VIEW" as const },
   { href: "/users", label: "Користувачі", permission: "USER_MANAGE" as const },
 ];
 

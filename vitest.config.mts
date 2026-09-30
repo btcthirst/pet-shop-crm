@@ -6,6 +6,8 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts"],
+    // Integration tests talk to the dev database, so `.env` has to be loaded first.
+    setupFiles: ["tests/setup-env.ts"],
     coverage: {
       provider: "v8",
       include: ["src/features/**/service.ts", "src/features/**/status.ts", "src/lib/money.ts"],
