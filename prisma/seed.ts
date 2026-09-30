@@ -3,7 +3,10 @@ import { PrismaPg } from "@prisma/adapter-pg";
 
 import { PrismaClient } from "../src/generated/prisma/client";
 
+import type { OrderStatus } from "../src/generated/prisma/enums";
 import type { Role } from "../src/generated/prisma/enums";
+
+import { changeOrderStatus, createOrder } from "../src/features/orders/service";
 
 /** Same resolution order as prisma.config.ts / src/lib/env.ts: dev branch first. */
 function createPrismaClient() {
@@ -116,6 +119,56 @@ const SEED_PRODUCTS: SeedProduct[] = [
   },
 ];
 
+type SeedOrder = {
+  customerPhone: string;
+  status: OrderStatus;
+  items: { sku: string; quantity: number }[];
+  comment?: string;
+};
+
+/**
+ * Demo orders give the dashboard and the stock journal something to show. They are created
+ * through the order service, so stock movements, totals and status history follow the same
+ * rules as in the app.
+ */
+const SEED_ORDERS: SeedOrder[] = [
+  {
+    customerPhone: "+380501234567",
+    status: "NEW",
+    items: [
+      { sku: "DOG-FOOD-001", quantity: 2 },
+      { sku: "ACC-001", quantity: 1 },
+    ],
+    comment: "Дзвізок доставки у четверг",
+  },
+  {
+    customerPhone: "+380671112233",
+    status: "CONFIRMED",
+    items: [{ sku: "CAT-FOOD-001", quantity: 2 }],
+  },
+  {
+    customerPhone: "+380931234567",
+    status: "DELIVERED",
+    items: [{ sku: "TOY-001", quantity: 1 }],
+    comment: "Подарунок, картка з подякою",
+  },
+  {
+    customerPhone: "+380501234567",
+    status: "CANCELLED",
+    items: [{ sku: "CAT-FOOD-002", quantity: 2 }],
+    comment: "Клієнт передумав",
+  },
+];
+
+/** The steps the service has to take to reach a demo order's final status. */
+const STATUS_PATH: Record<OrderStatus, OrderStatus[]> = {
+  NEW: [],
+  CONFIRMED: ["CONFIRMED"],
+  SHIPPED: ["CONFIRMED", "SHIPPED"],
+  DELIVERED: ["CONFIRMED", "SHIPPED", "DELIVERED"],
+  CANCELLED: ["CANCELLED"],
+};
+
 const SEED_CUSTOMERS = [
   { name: "Олена Ковальчук", phone: "+380501234567", email: "olena@example.com" },
   { name: "Тарас Мельник", phone: "+380671112233", email: "taras@example.com" },
@@ -185,6 +238,14 @@ async function main() {
       _sum: { delta: true },
     });
     const booked = aggregate._sum.delta ?? 0;
+    // Orders already reduced the stock on purpose, so the demo balance is not restored on top
+    // of them: pushing it back would invent a correction that hides the ordered units.
+    const ordered = await prisma.stockMovement.count({
+      where: { productId: saved.id, reason: { in: ["ORDER", "CANCEL"] } },
+    });
+
+    if (ordered > 0) continue;
+
     const delta = product.stock - booked;
 
     if (delta !== 0) {
@@ -212,6 +273,44 @@ async function main() {
     });
   }
   console.log(`customers: ${SEED_CUSTOMERS.length}`);
+
+  const existingOrders = await prisma.order.count();
+
+  if (existingOrders > 0) {
+    console.log(`orders: skipped, ${existingOrders} already in the database`);
+  } else {
+    for (const seedOrder of SEED_ORDERS) {
+      const customer = await prisma.customer.findUniqueOrThrow({
+        where: { phone: seedOrder.customerPhone },
+        select: { id: true },
+      });
+      const products = await prisma.product.findMany({
+        where: { sku: { in: seedOrder.items.map((item) => item.sku) } },
+        select: { id: true, sku: true },
+      });
+      const idBySku = new Map(products.map((product) => [product.sku, product.id]));
+
+      let order = await createOrder(
+        {
+          customerId: customer.id,
+          items: seedOrder.items.map((item) => ({
+            productId: idBySku.get(item.sku) ?? "",
+            quantity: item.quantity,
+          })),
+          comment: seedOrder.comment ?? null,
+        },
+        adminId,
+      );
+
+      // Walk the status through the service, so the history and the movements are real.
+      for (const step of STATUS_PATH[seedOrder.status]) {
+        order = await changeOrderStatus(order.id, step, adminId);
+      }
+
+      console.log(`order: №${order.number} (${seedOrder.status})`);
+    }
+    console.log(`orders: ${SEED_ORDERS.length}`);
+  }
 
   await prisma.$disconnect();
 }

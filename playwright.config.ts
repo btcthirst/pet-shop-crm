@@ -8,6 +8,14 @@ export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
   reporter: "list",
+  // The suite drives the real UI against the dev database; it starts the app itself unless one
+  // is already running (see `reuseExistingServer`).
+  webServer: {
+    command: "pnpm dev",
+    url: baseURL,
+    reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
+  },
   use: {
     baseURL,
     locale: "uk-UA",

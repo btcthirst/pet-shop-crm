@@ -4,7 +4,7 @@
 
 Розробка ведеться за технічною специфікацією `pet-shop-crm — технічна специфікація.md`.
 
-**Стан: етап 6 (дашборд).** Готово: авторизація з ролями Admin / Manager (етап 1), каталог категорій і товарів (етап 2), склад — прихід, коригування, журнал рухів і підсвітка малих залишків (етап 3), клієнти — список, картка з нормалізованими телефонами та історією (етап 4), замовлення — створення з позиціями, транзакційне списання, переходи статусів і скасування (етап 5), дашборд із новими замовленнями й товарами з малим залишком (етап 6). Далі: E2E-тести, фінальне README, скриншоти й деплой (етап 7).
+**Стан: етап 7 (тести й документація).** Готово: авторизація з ролями Admin / Manager (етап 1), каталог категорій і товарів (етап 2), склад — прихід, коригування, журнал рухів і підсвітка малих залишків (етап 3), клієнти — список, картка з нормалізованими телефонами та історією (етап 4), замовлення — створення з позиціями, транзакційне списання, переходи статусів і скасування (етап 5), дашборд із новими замовленнями й товарами з малим залишком (етап 6), unit + integration + E2E тести, seed із демо-замовленнями й скидання БД (етап 7). Залишився лише деплой на Vercel + Neon за розділом 12 специфікації.
 
 ## Стек
 
@@ -18,7 +18,7 @@
 | БД                | PostgreSQL (Neon)                                                         |
 | ORM               | Prisma 7 (`prisma-client` generator, driver adapter `@prisma/adapter-pg`) |
 | Авторизація       | Auth.js (Credentials) + bcryptjs — етап 1                                 |
-| Тести             | Vitest (unit, integration), Playwright (e2e) — сценарії на етапі 7        |
+| Тести             | Vitest (unit + integration, 80% coverage), Playwright (e2e)               |
 | CI                | GitHub Actions                                                            |
 
 ## Запуск
@@ -48,23 +48,24 @@ pnpm dev                   # http://localhost:3000
 
 ## Скрипти
 
-| Скрипт                    | Команда                            | Призначення                                      |
-| ------------------------- | ---------------------------------- | ------------------------------------------------ |
-| `dev`                     | `next dev`                         | Локальний запуск                                 |
-| `build`                   | `prisma generate && next build`    | Збірка                                           |
-| `start`                   | `next start`                       | Запуск збірки                                    |
-| `lint`                    | `eslint .`                         | Лінтинг                                          |
-| `format` / `format:check` | `prettier --write .` / `--check .` | Форматування                                     |
-| `typecheck`               | `tsc --noEmit`                     | Перевірка типів                                  |
-| `test`                    | `vitest run`                       | Unit та integration тести                        |
-| `test:coverage`           | `vitest run --coverage`            | Тести з порогом покриття 80% для доменної логіки |
-| `test:e2e`                | `playwright test`                  | E2E тести                                        |
-| `db:migrate`              | `prisma migrate dev`               | Створення й застосування міграцій                |
-| `db:deploy`               | `prisma migrate deploy`            | Застосування міграцій у CI та на деплої          |
-| `db:seed`                 | `prisma db seed`                   | Тестові дані                                     |
-| `db:reset`                | `prisma migrate reset`             | Очищення БД разом із seed                        |
-| `db:studio`               | `prisma studio`                    | Перегляд даних                                   |
-| `db:generate`             | `prisma generate`                  | Генерація Prisma Client                          |
+| Скрипт                    | Команда                                          | Призначення                                      |
+| ------------------------- | ------------------------------------------------ | ------------------------------------------------ |
+| `dev`                     | `next dev`                                       | Локальний запуск                                 |
+| `build`                   | `prisma generate && next build`                  | Збірка                                           |
+| `start`                   | `next start`                                     | Запуск збірки                                    |
+| `lint`                    | `eslint .`                                       | Лінтинг                                          |
+| `format` / `format:check` | `prettier --write .` / `--check .`               | Форматування                                     |
+| `typecheck`               | `tsc --noEmit`                                   | Перевірка типів                                  |
+| `test`                    | `vitest run`                                     | Unit та integration тести                        |
+| `test:coverage`           | `vitest run --coverage`                          | Тести з порогом покриття 80% для доменної логіки |
+| `test:e2e`                | `playwright test`                                | E2E тести                                        |
+| `db:migrate`              | `prisma migrate dev`                             | Створення й застосування міграцій                |
+| `db:deploy`               | `prisma migrate deploy`                          | Застосування міграцій у CI та на деплої          |
+| `db:seed`                 | `prisma db seed`                                 | Тестові дані                                     |
+| `db:reset`                | `prisma migrate reset && prisma db seed`         | Очищення БД разом із seed                        |
+| `db:reset:force`          | `prisma migrate reset --force && prisma db seed` | Те саме без запиту підтвердження (CI, скрипти)   |
+| `db:studio`               | `prisma studio`                                  | Перегляд даних                                   |
+| `db:generate`             | `prisma generate`                                | Генерація Prisma Client                          |
 
 ## Структура
 
@@ -238,6 +239,56 @@ pet-shop-crm/
 - `src/proxy.ts` (Next 16 замість middleware) не пропускає анонімних відвідувачів до сторінок і відправляє їх на `/login?callbackUrl=...`; `api` виключено, щоб Route Handlers відповідали JSON-контрактом помилок.
 - Права перевіряються на сервері: `requireRole()` / `requirePermission()` у `src/lib/permissions.ts`. Приховування посилання в навігації — лише зручність.
 - `GET /api/users` повертає `401` без сесії та `403` (`{"error":{"code":"FORBIDDEN",...}}`) для Manager.
+
+## Тестування (етап 7)
+
+`pnpm test` — 164 тести в 15 файлах: unit (без БД) та integration (dev-база Neon, у CI — Postgres service container).
+
+| Рівень      | Файли                                                                                                                              | Що перевіряє                                                                                                                                                                                    |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Unit        | `tests/unit/*` — 10 файлів: `orders`, `stock`, `customers`, `products`, `permissions`, `auth`, `money`, `slug`, `plural`, `errors` | матриця переходів статусів (усі дозволені й заборонені), сума замовлення, нормалізація телефону, форматування грошей, права                                                                     |
+| Integration | `orders`, `stock`, `catalogue`, `customers`, `dashboard`                                                                           | списання й рухи `ORDER`, недостатній залишок без змін у БД, скасування з рухами `CANCEL`, два паралельні замовлення на останню одиницю, `403` для Manager на зміні ціни, `sum(delta) === stock` |
+| E2E         | `tests/e2e/admin.spec.ts`, `tests/e2e/manager.spec.ts`                                                                             | Admin: логін → категорія → товар → прихід → замовлення → `CONFIRMED` → `SHIPPED` → `DELIVERED`; Manager: немає розділу «Користувачі», `/users` дає 403, немає форми зміни ціни                  |
+
+Покриття доменної логіки (`features/*/service.ts`, `status.ts`, `money.ts`) — `pnpm test:coverage`, поріг 80% на statements / branches / functions / lines:
+
+```
+Statements   : 89.9% ( 187/208 )
+Branches     : 80.62% ( 104/129 )
+Functions    : 91.22% (  52/57 )
+Lines        : 90%   ( 180/200 )
+```
+
+Особливості тестового середовища:
+
+- Інтеграційні файли спільно використовують одну БД, тому `vitest.config.mts` має `fileParallelism: false`, а `testTimeout: 30_000` (багато послідовних round-trip'ів до віддаленого Neon).
+- Кожен фікастур має власний префікс у назві/SKU (`TST-CAT-`, `CUST-ORD-`, `Тест-Клієнт-`) і прибирає себе в `afterAll`. `beforeAll` до того чистить залишки перерваного прогону — за тією ж префіксною ознакою, а не за схожою, тому демо-дані (`CAT-FOOD-001`) тести не зачіпають.
+- Тести не покладаються на конкретні числа демо-бази: кількості й суми порівнюються з окремими запитами до БД, а лічильники обмежуються власними фікстурами.
+- E2E запускаються проти `pnpm dev` (`reuseExistingServer`), створюють власні дані й прибирають їх окремим процесом (`tests/e2e/support/cleanup.ts`), бо Prisma Client живе в ESM-просторі і не серіалізується в дитині Playwright.
+- `selectOption()` у `tests/e2e/support/fixtures.ts` повторює вибір через `expect(...).toPass()`: до гідрації React скидає значення `<select>`, і надійний E2E мусить це враховувати.
+
+## Демо-дані
+
+`pnpm db:seed` створює 2 користувачів, 4 категорії, 6 товарів, 3 клієнтів і 4 замовлення — по одному на кожен статус (`NEW`, `CONFIRMED`, `DELIVERED`, `CANCELLED`), створені тим самим доменним сервісом, що й UI. Замовлення проходять повний життєвий цикл, а скасування повертає залишки рухами `CANCEL`, тому інваріант `sum(delta) === stock` тримається навіть на демо-даних.
+
+Seed ідемпотентний: якщо в базі вже є замовлення, нові не створюються, а товар, що вже має рухи `ORDER`/`CANCEL`, не «відновлюється» поверх спису — інайше другий запуск seed зруйнував би залишки.
+
+Очищення бази разом із демо-даними: `pnpm db:reset` (запитує підтвердження) або `pnpm db:reset:force` (без запиту, для CI та скриптів). Prisma 7 не запускає seed після `migrate reset`, тому seed у скрипті явний.
+
+## Скриншоти
+
+| Сторінка          | Файл                                                           |
+| ----------------- | -------------------------------------------------------------- |
+| Вхід              | [docs/screenshots/01-login.png](docs/screenshots/01-login.png) |
+| Дашборд           | [02-dashboard.png](docs/screenshots/02-dashboard.png)          |
+| Список товарів    | [03-products.png](docs/screenshots/03-products.png)            |
+| Картка товару     | [03b-product-card.png](docs/screenshots/03b-product-card.png)  |
+| Категорії         | [04-categories.png](docs/screenshots/04-categories.png)        |
+| Склад             | [05-stock.png](docs/screenshots/05-stock.png)                  |
+| Клієнти           | [06-customers.png](docs/screenshots/06-customers.png)          |
+| Список замовлень  | [07-orders.png](docs/screenshots/07-orders.png)                |
+| Картка замовлення | [07b-order-card.png](docs/screenshots/07b-order-card.png)      |
+| Користувачі       | [08-users.png](docs/screenshots/08-users.png)                  |
 
 ## CI
 
