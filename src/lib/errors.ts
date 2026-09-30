@@ -1,3 +1,5 @@
+import type { ZodError } from "zod";
+
 export const ERROR_CODES = [
   "VALIDATION_ERROR",
   "UNAUTHORIZED",
@@ -58,6 +60,18 @@ export class AppError extends Error {
 
 export function isAppError(error: unknown): error is AppError {
   return error instanceof AppError;
+}
+
+export type FieldIssue = { path: string; message: string };
+
+/** Maps a Zod failure onto the documented VALIDATION_ERROR contract. */
+export function validationError(error: ZodError, message = "Перевірте введені дані"): AppError {
+  const fields: FieldIssue[] = error.issues.map((issue) => ({
+    path: issue.path.join("."),
+    message: issue.message,
+  }));
+
+  return new AppError("VALIDATION_ERROR", message, { fields });
 }
 
 /** Maps any thrown value to the `{ error: { code, message, details? } }` contract. */

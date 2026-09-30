@@ -4,7 +4,7 @@
 
 Розробка ведеться за технічною специфікацією `pet-shop-crm — технічна специфікація.md`.
 
-**Стан: етап 0 (каркас проєкту).** Реалізовано інфраструктуру — Next.js, Prisma зі схемою БД і міграціями, shadcn/ui, ESLint + Prettier, Vitest, CI. Доменна логіка, сторінки та API з'являються на наступних етапах (див. «План»).
+**Стан: етап 2 (каталог).** Готово: авторизація з ролями Admin / Manager (етап 1) і каталог — категорії та товари з CRUD, пошуком, фільтрами, пагінацією, REST API та role-based доступом (етап 2). Далі: склад, клієнти, замовлення, дашборд, тести й деплой (див. «План»).
 
 ## Стек
 
@@ -18,7 +18,7 @@
 | БД                | PostgreSQL (Neon)                                                         |
 | ORM               | Prisma 7 (`prisma-client` generator, driver adapter `@prisma/adapter-pg`) |
 | Авторизація       | Auth.js (Credentials) + bcryptjs — етап 1                                 |
-| Тести             | Vitest (unit), Playwright (e2e) — етап 7                                  |
+| Тести             | Vitest (unit, integration), Playwright (e2e) — сценарії на етапі 7        |
 | CI                | GitHub Actions                                                            |
 
 ## Запуск
@@ -75,9 +75,10 @@ pet-shop-crm/
 │  ├─ migrations/          (init + CHECK-обмеження)
 │  └─ seed.ts              (етап 1)
 ├─ prisma.config.ts        (Prisma 7: datasource url, seed)
+├─ playwright.config.ts    (testDir: tests/e2e)
 ├─ src/
 │  ├─ app/                 (сторінки та /api — етапи 1–6)
-│  ├─ features/            products | stock | customers | orders
+│  ├─ features/            products | stock | customers | orders (етап 2: products, categories)
 │  ├─ lib/                 db.ts, errors.ts, money.ts (auth.ts, permissions.ts — етап 1)
 │  └─ generated/prisma/    Prisma Client (генерується, у gitignore)
 ├─ tests/                  unit/ | integration/ | e2e/
@@ -93,6 +94,32 @@ pet-shop-crm/
 - `Product.stock >= 0`
 - `Product.priceKopecks >= 0`
 - `OrderItem.quantity > 0`
+
+## Каталог (етап 2)
+
+| Сторінка         | Можливості                                                                  |
+| ---------------- | --------------------------------------------------------------------------- |
+| `/products`      | пошук `q`, фільтри `categoryId` і `lowStock`, пагінація `page` / `pageSize` |
+| `/products/new`  | створення товару (Admin); Manager бачить «Доступ заборонено»                |
+| `/products/[id]` | картка товару, редагування й деактивація/активація (Admin)                  |
+| `/categories`    | список із кількістю товарів, створення, перейменування, видалення (Admin)   |
+
+| Endpoint               | Методи                   | Права                |
+| ---------------------- | ------------------------ | -------------------- |
+| `/api/products`        | `GET`, `POST`            | A: `POST`            |
+| `/api/products/[id]`   | `GET`, `PATCH`, `DELETE` | A: `PATCH`, `DELETE` |
+| `/api/categories`      | `GET`, `POST`            | A: `POST`            |
+| `/api/categories/[id]` | `PATCH`, `DELETE`        | A                    |
+
+Правила домену:
+
+- Ціни в API — цілими копійками (`priceKopecks`); форма приймає гривні (`249.90`) і конвертує.
+- `sku` унікальний і обрізається від пробілів; дублікат → `400 VALIDATION_ERROR`.
+- `slug` категорії генерується з українського тексту (`toSlug`) і оновлюється при перейменуванні.
+- Товар не видаляється фізично: `DELETE` лише деактивує (`isActive = false`), замовлені позиції не зникають.
+- Категорію, до якої належать товари, видалити не можна (`400`), кількість товарів показується в списку.
+- `stock` не змінюється через `Product` — лише рухами `StockMovement` (етап 3).
+- Фільтр «мало на складі» — це `stock <= lowStockThreshold`, критерій не виражається типізованим `where` Prisma, тому список береться raw SQL (`Prisma.sql`) з безпечною parameterization.
 
 ## Ролі й тестові облікові дані
 
