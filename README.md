@@ -292,9 +292,11 @@ Seed ідемпотентний: якщо в базі вже є замовлен
 
 ## CI
 
-`.github/workflows/ci.yml`: `pnpm install --frozen-lockfile` → `lint` → `typecheck` → `db:deploy` (Postgres 18 як service container) → `test` → `build`.
+`.github/workflows/ci.yml`: `pnpm install --frozen-lockfile` → `lint` → `typecheck` → `db:deploy` (Postgres 18 як service container) → `test` → `db:seed` → `build`.
 
 `typecheck` спершу виконує `prisma generate`, бо згенерований клієнт не потрапляє в git — свіжий клон і CI проходять перевірку без ручного кроку.
+
+`test` стоїть перед `db:seed` свідомо: інтеграційні тести створюють усі свої фікстури самі (`tests/integration/support/author.ts` дає їм ADMIN без залежності від seed), тому проходять на базі з одними міграціями — рівно так, як у CI. `db:seed` після тестів лишається як smoke-перевірка seed-скрипта на живій базі: без неї помилку в `prisma/seed.ts` (constraints, ідемпотентність, резолв URL) було б видно лише при ручному налаштуванні.
 
 ## Відхилення від специфікації
 

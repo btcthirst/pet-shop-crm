@@ -7,6 +7,8 @@ import { createOrder } from "@/features/orders/service";
 import { createStockMovement } from "@/features/stock/service";
 import { db } from "@/lib/db";
 
+import { ensureTestAuthor } from "./support/author";
+
 /**
  * Stage 6 is done when the dashboard matches the database, so every assertion here is
  * compared with an independent query instead of a hardcoded number.
@@ -22,23 +24,9 @@ const productIds: string[] = [];
 const orderIds: string[] = [];
 
 beforeAll(async () => {
-  const existing = await db.user.findFirst({ where: { role: "ADMIN" }, select: { id: true } });
-
-  if (existing) {
-    authorId = existing.id;
-  } else {
-    const author = await db.user.create({
-      data: {
-        email: `dashboard-test-${runId}@petshop.local`,
-        name: "Тестовий Admin",
-        role: "ADMIN",
-        passwordHash: "not-used",
-      },
-      select: { id: true },
-    });
-    authorId = author.id;
-    createdAuthor = true;
-  }
+  const author = await ensureTestAuthor(`dashboard-test-${runId}`);
+  authorId = author.id;
+  createdAuthor = author.created;
 
   const category = await db.category.create({
     data: { name: `Тест-дашборд ${runId}`, slug: `test-dashboard-${runId}` },

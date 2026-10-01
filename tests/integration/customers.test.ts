@@ -13,10 +13,14 @@ import { createProduct } from "@/features/products/service";
 import { createStockMovement } from "@/features/stock/service";
 import { db } from "@/lib/db";
 
+import { ensureTestAuthor } from "./support/author";
+
 const tag = Date.now().toString(36).slice(-6);
 const NAME_PREFIX = `Тест-Клієнт-${tag}`;
 const customerIds: string[] = [];
 let phoneCounter = 0;
+let adminId = "";
+let createdAdmin = false;
 
 /**
  * The service stores the phone as it arrives: normalisation and validation belong to the schema
@@ -77,6 +81,7 @@ afterAll(async () => {
   await db.product.deleteMany({ where: { id: { in: allProductIds } } });
   await db.category.deleteMany({ where: { id: { in: categoryIds } } });
   await db.category.deleteMany({ where: { name: { startsWith: `Замовлення-${tag}` } } });
+  if (createdAdmin) await db.user.deleteMany({ where: { id: adminId } });
 
   await db.$disconnect();
 });
@@ -139,8 +144,10 @@ describe("клієнти", () => {
   it("не видаляє клієнта, поки в нього є замовлення", async () => {
     const customer = await makeCustomer();
 
-    const adminId = (await db.user.findUniqueOrThrow({ where: { email: "admin@petshop.local" } }))
-      .id;
+    const author = await ensureTestAuthor(`customers-test-${tag}`);
+    adminId = author.id;
+    createdAdmin = author.created;
+
     const category = await createCategory({ name: `Замовлення-${tag}` });
     categoryIds.push(category.id);
     const product = await createProduct({

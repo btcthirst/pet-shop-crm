@@ -7,6 +7,8 @@ import { createStockMovement } from "@/features/stock/service";
 import { db } from "@/lib/db";
 import { isAppError } from "@/lib/errors";
 
+import { ensureTestAuthor } from "./support/author";
+
 import type { OrderStatus } from "@/generated/prisma/enums";
 
 /**
@@ -62,25 +64,11 @@ async function movementsOf(productId: string) {
 }
 
 beforeAll(async () => {
-  // The author is created here so the suite does not depend on `pnpm db:seed` (CI only runs
-  // migrations). Nothing signs in with this account, so the hash is never checked.
-  const existing = await db.user.findFirst({ where: { role: "ADMIN" }, select: { id: true } });
-
-  if (existing) {
-    authorId = existing.id;
-  } else {
-    const author = await db.user.create({
-      data: {
-        email: `orders-test-${runId}@petshop.local`,
-        name: "Тестовий Admin",
-        role: "ADMIN",
-        passwordHash: "not-used",
-      },
-      select: { id: true },
-    });
-    authorId = author.id;
-    createdAuthor = true;
-  }
+  // The author comes from the shared fixture helper so the suite does not depend on `pnpm db:seed`
+  // (CI runs the tests before the seed step). Nothing signs in, so the hash is never checked.
+  const author = await ensureTestAuthor(`orders-test-${runId}`);
+  authorId = author.id;
+  createdAuthor = author.created;
 
   const category = await db.category.create({
     data: { name: `Тест-замовлення ${runId}`, slug: `test-orders-${runId}` },

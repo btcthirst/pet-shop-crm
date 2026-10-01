@@ -7,13 +7,18 @@ import { toStockMovementInput } from "@/features/stock/schema";
 import { db } from "@/lib/db";
 import type { AppError } from "@/lib/errors";
 
+import { ensureTestAuthor } from "./support/author";
+
 const tag = Date.now().toString(36);
 let adminId = "";
+let createdAdmin = false;
 let productId = "";
 let emptyProductId = "";
 
 beforeAll(async () => {
-  adminId = (await db.user.findUniqueOrThrow({ where: { email: "admin@petshop.local" } })).id;
+  const author = await ensureTestAuthor(`stock-test-${tag}`);
+  adminId = author.id;
+  createdAdmin = author.created;
 
   const category = await createCategory({ name: `Склад-${tag}` });
   const product = await createProduct({
@@ -40,6 +45,7 @@ afterAll(async () => {
   await db.stockMovement.deleteMany({ where: { productId: { in: ids } } });
   await db.product.deleteMany({ where: { id: { in: ids } } });
   await db.category.deleteMany({ where: { name: { startsWith: "Склад-" } } });
+  if (createdAdmin) await db.user.deleteMany({ where: { id: adminId } });
   await db.$disconnect();
 });
 
