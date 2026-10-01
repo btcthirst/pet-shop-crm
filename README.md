@@ -290,6 +290,22 @@ Seed ідемпотентний: якщо в базі вже є замовлен
 | Картка замовлення | [07b-order-card.png](docs/screenshots/07b-order-card.png)      |
 | Користувачі       | [08-users.png](docs/screenshots/08-users.png)                  |
 
+## Деплой на Vercel
+
+У Build and Output Settings нічого міняти не треба. Для Next.js Vercel бере `build`-скрипт із `package.json`, тобто виконує `prisma generate && next build` (а `next build` — лише fallback, якщо скрипта немає), Framework preset визначається сам, Output Directory лишається `.next`, Install Command — за замовчуванням (pnpm з `packageManager` і lockfile). Версія Node.js теж підтягується з `engines.node` / `.nvmrc` — це 24.
+
+Натомість змінні середовища треба задати **до** першого деплою. `next build` імпортує модулі роутів, тому без `DATABASE_URL` він падає на `Failed to collect configuration for /api/dashboard` (типово на `src/lib/env.ts`), хоча всі сторінки динамічні: prerenderиться лише `/_not-found`.
+
+| Змінна         | Значення                                                                                       |
+| -------------- | ---------------------------------------------------------------------------------------------- |
+| `DATABASE_URL` | рядок Neon з пулером (host містить `-pooler`), `?sslmode=require` — саме його читає застосунок |
+| `DIRECT_URL`   | прямий рядок Neon для Prisma CLI; у рантаймі не потрібен, але потрібен для міграцій            |
+| `AUTH_SECRET`  | наприклад `openssl rand -base64 32`                                                            |
+
+`DATABASE_URL_DEV` / `DIRECT_URL_DEV` на Vercel задавати не треба: вони мають пріоритет і деплой пішов би у dev-гілку Neon (див. «Змінні середовища»).
+
+Міграції не належать до білду й застосовуються вручну: `DIRECT_URL=<прямий рядок> pnpm db:deploy`. Демо-дані — `SEED_ADMIN_PASSWORD=... SEED_MANAGER_PASSWORD=... DIRECT_URL=<прямий рядок> pnpm db:seed`.
+
 ## CI
 
 `.github/workflows/ci.yml`: `pnpm install --frozen-lockfile` → `lint` → `typecheck` → `db:deploy` (Postgres 18 як service container) → `test` → `db:seed` → `build`.
