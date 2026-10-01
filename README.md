@@ -10,7 +10,7 @@
 
 | Шар               | Технологія                                                                |
 | ----------------- | ------------------------------------------------------------------------- |
-| Runtime           | Node.js 24 (`.nvmrc`), `engines`: `>=22.12`                               |
+| Runtime           | Node.js 24 (`.nvmrc`), `engines`: `>=24`                                  |
 | Пакетний менеджер | pnpm 12 (`packageManager`)                                                |
 | Фреймворк         | Next.js 16 (App Router, Turbopack), TypeScript strict                     |
 | UI                | Tailwind CSS 4, shadcn/ui (radix)                                         |
@@ -292,7 +292,7 @@ Seed ідемпотентний: якщо в базі вже є замовлен
 
 ## CI
 
-`.github/workflows/ci.yml`: `pnpm install --frozen-lockfile` → `lint` → `typecheck` → `db:deploy` (Postgres 16 як service container) → `test` → `build`.
+`.github/workflows/ci.yml`: `pnpm install --frozen-lockfile` → `lint` → `typecheck` → `db:deploy` (Postgres 18 як service container) → `test` → `build`.
 
 `typecheck` спершу виконує `prisma generate`, бо згенерований клієнт не потрапляє в git — свіжий клон і CI проходять перевірку без ручного кроку.
 
